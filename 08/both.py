@@ -1,11 +1,6 @@
 from collections import deque
 
 
-def pad_list(l, n):
-    l += [0] * (n - len(l))
-    return l
-
-
 def get_node_sum(numbers):
     child_q, meta_q = numbers.popleft(), numbers.popleft()
 
@@ -26,7 +21,8 @@ def get_node_value(numbers):
     if not child_q:
         return sum(meta_list)
 
-    return sum([pad_list(values_list, meta)[meta - 1] for meta in meta_list])
+    return sum([values_list[meta - 1] if len(values_list) >= meta else 0 for meta in meta_list])
+
 
 def main():
     with open('input.txt', 'r') as f:
@@ -34,6 +30,8 @@ def main():
 
     print('part 1: {}'.format(get_node_sum(deque(numbers))))
     print('part 2: {}'.format(get_node_value(deque(numbers))))
+
+
 
 
 if __name__ == '__main__':
