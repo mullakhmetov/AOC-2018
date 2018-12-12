@@ -1,16 +1,14 @@
 import re
 import heapq
-from itertools import count
 from collections import namedtuple, defaultdict
-
-from pprint import pprint
 
 
 # line example: Step C must be finished before step A can begin
 step_re = re.compile(r'Step\s([A-Z]).+step\s([A-Z]).+')
 Step = namedtuple('Step', ['name', 'parent'])
 
-MAX_WORKERS = 2
+MAX_WORKERS = 5
+BASE_TIME = 60
 
 
 def parse_step(instruction):
@@ -52,7 +50,18 @@ def topological_sort(graph):
 
 
 def get_node_time(node):
-    return ord(node) - 64
+    if not node:
+        return 0
+    return ord(node) - ord('A') + BASE_TIME + 1
+
+
+def remove_node(nodes, node):
+    for k, v in nodes.items():
+        if node in v:
+            v.remove(node)
+            nodes[k] = v
+    if node in nodes:
+        del nodes[node]
 
 
 def main():
@@ -61,15 +70,15 @@ def main():
 
     steps = [parse_step(i) for i in instructions]
 
-    nodes = set()
     graph = defaultdict(list)
+    nodes = defaultdict(list)
     for step in steps:
         graph[step.parent].append(step.name)
 
-        nodes.update((step.name, step.parent))
+        nodes[step.name].append(step.parent)
+        nodes[step.parent]  # trigger default value
 
-    # graph representation is dict like:
-    #
+    # `graph` representation is dict like:
     # {'A': ['B', 'D'],
     #  'B': ['E'],
     #  'C': ['A', 'F'],
@@ -78,9 +87,48 @@ def main():
     #
     # where key is node and value is a list containing the nodes
     # that are connected by a direct arc from key node.
+    #
+    # `nodes` representation is reversed graph dict:
+    # {'A': ['C'],
+    #  'B': ['A'],
+    #  'C': [],
+    #  'D': ['A'],
+    #  'E': ['B', 'D', 'F'],
+    #  'F': ['C']})
 
-    part_1_result = ''.join(topological_sort(graph))
+    sorted_nodes = topological_sort(graph)
+    part_1_result = ''.join(sorted_nodes)
     print(f'part 1: {part_1_result}')
+
+    workers = {i: (None, None) for i in range(MAX_WORKERS)}
+
+    current_time = 0
+    while nodes:
+        # remove finished tasks
+        for k, (node, worker_time) in workers.items():
+            if not node:
+                continue
+
+            if worker_time == current_time:
+                workers[k] = (None, None)
+                remove_node(nodes, node)
+
+        # add new tasks
+        for k, _ in workers.items():
+            if _ != (None, None):
+                continue
+
+            ready_nodes = [n for n, children in nodes.items() if not children and n not in [n for n, _ in workers.values()]]
+            if not ready_nodes:
+                break
+
+            node = ready_nodes.pop()
+            time = get_node_time(node) + current_time
+            workers[k] = node, time
+
+        current_time += 1
+
+    print(f'part 2: {current_time - 1}')
 
 
 if __name__ == '__main__':
